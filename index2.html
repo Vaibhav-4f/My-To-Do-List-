@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Explorer</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        fadeIn: "fadeIn 0.7s ease",
+                        pop: "pop 0.3s ease-out",
+                    },
+                    keyframes: {
+                        fadeIn: { "0%": { opacity: 0 }, "100%": { opacity: 1 } },
+                        pop: { "0%": { transform: "scale(0.9)" }, "100%": { transform: "scale(1)" } }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-700 min-h-screen p-6">
+
+    <!-- Main card -->
+    <div
+        class="max-w-3xl mx-auto bg-white/10 backdrop-blur-2xl p-8 mt-10 rounded-2xl shadow-2xl border border-white/20 animate-fadeIn">
+
+        <h1 class="text-4xl font-bold text-center text-white mb-6 tracking-wide">
+            <i class="fa-solid fa-cloud-moon"></i> Weather Explorer
+        </h1>
+
+        <!-- search boc -->
+        <div class="flex gap-3">
+            <input id="city"
+                class="flex-1 px-5 py-3 rounded-xl bg-white/90 text-gray-800 shadow-inner focus:ring-4 focus:ring-blue-400 outline-none"
+                type="text" placeholder="Enter a city...">
+
+            <button onclick="getWeather()"
+                class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-700 transition">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+        </div>
+
+        <div id="loading" class="hidden mt-8 text-center">
+            <div class="animate-spin h-10 w-10 border-4 border-white border-t-transparent rounded-full mx-auto"></div>
+            <p class="text-white mt-3">Loading...</p>
+        </div>
+
+        <p id="error" class="text-red-300 text-center mt-4"></p>
+
+        <div id="result" class="hidden mt-10 animate-pop"></div>
+
+    </div>
+
+    <script>
+        // weather keywords → theme + icon
+        function getWeatherTheme(desc) {
+            desc = desc.toLowerCase();
+            if (desc.includes("rain")) return { bg: "bg-gradient-to-br from-blue-700 to-slate-900", icon: "fa-cloud-rain" };
+            if (desc.includes("sun") || desc.includes("clear")) return { bg: "bg-gradient-to-br from-yellow-400 to-orange-600", icon: "fa-sun" };
+            if (desc.includes("snow")) return { bg: "bg-gradient-to-br from-blue-200 to-blue-500", icon: "fa-snowflake" };
+            if (desc.includes("storm") || desc.includes("thunder")) return { bg: "bg-gradient-to-br from-gray-700 to-purple-900", icon: "fa-bolt" };
+            if (desc.includes("fog") || desc.includes("mist")) return { bg: "bg-gradient-to-br from-gray-400 to-gray-700", icon: "fa-smog" };
+            if (desc.includes("cloud")) return { bg: "bg-gradient-to-br from-gray-300 to-gray-600", icon: "fa-cloud" };
+            return { bg: "bg-gradient-to-br from-teal-500 to-blue-700", icon: "fa-cloud-sun" };
+        }
+
+        async function getWeather() {
+            const result = document.getElementById("result");
+            const error = document.getElementById("error");
+            const loading = document.getElementById("loading");
+            const city = document.getElementById("city").value.trim();
+
+            result.innerHTML = "";
+            result.classList.add("hidden");
+            error.innerHTML = "";
+            loading.classList.remove("hidden");
+
+            const url = `https://wttr.in/${city}?format=j1`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const current = data.current_condition[0];
+                const desc = current.weatherDesc[0].value;
+                const temp = parseInt(current.temp_C);
+                const feels = current.FeelsLikeC;
+                const wind = current.windspeedKmph;
+                const humidity = current.humidity;
+
+                const theme = getWeatherTheme(desc);
+
+                // Build 3-day forecast cards
+                const forecast = data.weather.slice(0, 3).map((day, i) => {
+                    const avgTemp = parseInt(day.avgtempC);
+                    const dayDesc = day.hourly[4].weatherDesc[0].value;
+                    const fTheme = getWeatherTheme(dayDesc);
+                    return `
+                <div class="p-5 rounded-2xl shadow-lg text-white ${fTheme.bg} border border-white/20 text-center transition hover:scale-[1.03]">
+                    <i class="fa-solid ${fTheme.icon} text-4xl mb-2"></i>
+                    <h3 class="text-lg font-bold mb-1">Day ${i + 1}</h3>
+                    <p>${avgTemp}°C</p>
+                    <p class="text-sm">${dayDesc}</p>
+                </div>
+            `;
+                }).join("");
+
+                result.innerHTML = `
+            <div class="rounded-2xl p-8 shadow-xl text-white ${theme.bg} border border-white/20 mb-8 text-center">
+                <i class="fa-solid ${theme.icon} text-7xl drop-shadow-xl mb-4"></i>
+                <h2 class="text-3xl font-bold mb-2">${desc}</h2>
+                <p class="text-6xl font-extrabold mb-4">${temp}°C</p>
+                <div class="grid grid-cols-3 text-center text-lg gap-4">
+                    <div><i class="fa-solid fa-temperature-half"></i><br>${feels}°C<br><span class="text-sm">Feels</span></div>
+                    <div><i class="fa-solid fa-wind"></i><br>${wind} km/h<br><span class="text-sm">Wind</span></div>
+                    <div><i class="fa-solid fa-droplet"></i><br>${humidity}%<br><span class="text-sm">Humidity</span></div>
+                </div>
+            </div>
+
+            <h2 class="text-3xl font-bold text-white mb-5 tracking-wide text-center"><i class="fa-solid fa-calendar-alt"></i> 3-Day Forecast</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                ${forecast}
+            </div>
+        `;
+
+                loading.classList.add("hidden");
+                result.classList.remove("hidden");
+
+            } catch (err) {
+                loading.classList.add("hidden");
+                error.innerHTML = "Could not load weather data.";
+            }
+        }
+    </script>
+</body>
+
+</html>
